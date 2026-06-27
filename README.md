@@ -1,17 +1,18 @@
 # BSCAN Tools
 
-**Version:** 1.0  
-**Tested:** Vivado System Debugger (XSDB) v2024.2 | Xilinx hw_server v2024.2
-
----
-
 ## Introduction
 
 BSCAN Tools is a suite of Tcl functions for testing and diagnostics of integrated circuits via **Boundary Scan** (IEEE 1149.1 JTAG standard). It allows you to access and control I/O pins without direct contact with the circuit, using only the JTAG chain.
 
+**No licenses or paid software required.** JTAG Boundary communication is established via **XSDB** (Xilinx System Debugger), included free with the Vivado suite. It is compatible with **any device conforming to the IEEE 1149.1 standard**, not just Xilinx devices.
+
+JTAG connection can be established with:
+- **Digilent HS3** - Professional JTAG Programmer/Debugger
+- **FT232H Breakout Board** - Cost-effective and versatile solution based on FTDI
+
 ### What is Boundary Scan?
 
-**Boundary Scan** is a test infrastructure integrated into the device that allows you to:
+**Boundary Scan** is an industrial test standard (IEEE 1149.1 JTAG) integrated into devices that allows you to:
 
 - **Read the state** of I/O pins (input/output)
 - **Drive outputs** to specific logic levels
@@ -20,17 +21,16 @@ BSCAN Tools is a suite of Tcl functions for testing and diagnostics of integrate
 - **Test high-speed components** (MGT, transceivers)
 - **Identify the device** via IDCODE
 
-Each I/O pin is connected to a "boundary cell" that acts as a programmable logic controller capable of reading, driving, or observing the signal on the PCB trace.
-
 ---
 
 ## General Workflow
 
-1. **Connect the JTAG cable**
-2. Start the Vivado hardware server: `hw_server.bat`
-3. Start XSDB: `xsdb.bat`
-4. Load the BSDL description: `bscan_load <device>.bsd`
-5. Use the commands below
+1. **Download the bscan_tools.tcl file** from [Boundary-Scan-with-Vivado-tools](https://github.com/Jampag/Boundary-Scan-with-Vivado-tools/blob/main/bscan_tools.tcl)
+2. **Connect the JTAG cable**
+3. Start the Vivado hardware server: `hw_server.bat`
+4. Start XSDB: `xsdb.bat`
+5. Load the BSDL description: `bscan_load <device>.bsd`
+6. Use the commands below
 
 ### Important Notes
 
@@ -50,9 +50,34 @@ Each I/O pin is connected to a "boundary cell" that acts as a programmable logic
 source <path>/bscan_tools.tcl
 ```
 
+Upon successful loading, the following output will be printed:
+```
+xsdb% source D:/tmp/bscan_tools.tcl
+BSCAN JTAG chain
+  1  Digilent JTAG-HS3 2102xxxxxxxx
+     2  xc7s15 (idcode 03620093 irlen 6 fpga)
+BSCAN connected url=tcp:localhost:3121 target=2
+BSCAN Tools v1.0
+Default: IRLEN=6  BR_LEN=339  SAMPLE=01  EXTEST=26  IDCODE=09  BYPASS=3F
+Quick commands:
+  bscan_load <path>/device.bsd
+  --snip
+```
+
 ### Load BSDL File
 ```tcl
 bscan_load <path>/device.bsd
+```
+
+Example output:
+```
+xsdb% bscan_load D:/tmp/xc7s15_ftgb196.bsd
+ BSDL: D:/tmp/xc7s15_ftgb196.bsd
+ BOUNDARY_LENGTH = 339 IRLEN=6 SAMPLE=01 EXTEST=26 IDCODE=09 BYPASS=3F TRAIN=3D PULSE=3C
+  IDCODE_REGISTER parts = 0xX & 0x1B & 0x20 & 0x49 & 0x1
+  IDCODE_REGISTER bits  = 00000011011000100000000010010011 (0x03620093)
+  IDCODE std: ver=0xX part=0x3620 mfg=0x49 req=1
+xsdb%
 ```
 
 Automatically loads:
@@ -85,8 +110,16 @@ Run-Test/Idle
 
 **Example:**
 ```tcl
-bscan_idcode
-# Output: Device IDCODE: 0x3628A093
+xsdb% bscan_idcode
+ IDCODE_bsdl = (0x03620093)
+JTAG read:
+ IDCODE = 0x03620093
+ IDCODE raw   = 0x93006203
+ IDCODE canon = 0x03620093 (byte-swapped)
+  required(LSB)   = 1 required by 1149.1
+  version         = 0 (0x0)
+  part_number     = 13856 (0x3620)
+  manufacturer    = 73 (0x049) Xilinx
 ```
 
 ---
@@ -113,7 +146,21 @@ Reads all pins, prints 10 columns per line.
 
 ### Examples
 
-#### 1. Standard Reading (10 columns)
+#### 1. Real-world Example:
+
+Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board,Read the state of pin E2 of PMOD-E (which corresponds to the IO_B13 pin) after removing any connections:
+
+```tcl
+xsdb% bscan_input -port IO_B13
+304:1 BC_2,IO_B13,output3 | 305:1 BC_2,IO_B13,input
+```
+The "305:1 BC_2,IO_B13,input" is high status because the pull-up is are enabled
+
+Output will show the current state of the D1 pin on the Arduino shield.
+
+---
+
+#### Standard Reading (10 columns)
 ```tcl
 bscan_input
 ```
@@ -126,19 +173,19 @@ Register  Value
 ...
 ```
 
-#### 2. Reading with N Columns
+#### 3. Reading with N Columns
 ```tcl
 bscan_input 5
 ```
 Prints 5 values per line for more compact visualization.
 
-#### 3. Filter by Port Name
+#### 4. Filter by Port Name
 ```tcl
 bscan_input -port CCLK_A8
 ```
 Reads only pins belonging to the `CCLK_A8` port.
 
-#### 4. Filter by Function Type
+#### 5. Filter by Function Type
 ```tcl
 bscan_input -function input
 ```
@@ -151,13 +198,13 @@ Available types:
 - `observe_only` - passive observation
 - `controlr` - control
 
-#### 5. Combined Reading (Multiple Filters)
+#### 6. Combined Reading (Multiple Filters)
 ```tcl
 bscan_input 5 -port IO_L5 -function output3
 ```
 Reads 5 columns, filtering by `IO_L5` port and `output3` type.
 
-#### 6. Raw Mode (Without BSDL Lookup)
+#### 7. Raw Mode (Without BSDL Lookup)
 ```tcl
 bscan_input -reg
 ```
@@ -168,7 +215,7 @@ bscan_input 5 -reg
 ```
 Same raw format but with 5 columns.
 
-#### 7. Reading Without TAP Reset
+#### 8. Reading Without TAP Reset
 ```tcl
 bscan_input -noreset
 ```
@@ -276,5 +323,7 @@ set ::BSCAN(br_len) 2048
 
 ---
 
+**Version:** 1.0  
+**Tested:** Vivado System Debugger (XSDB) v2024.2 | Xilinx hw_server v2024.2  
 **Created:** April 2026  
 **License:** Provided as-is for diagnostic and testing purposes
