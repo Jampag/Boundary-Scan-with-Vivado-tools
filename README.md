@@ -21,6 +21,11 @@ JTAG connection can be established with:
 - **Test high-speed components** (MGT, transceivers)
 - **Identify the device** via IDCODE
 
+<img width="323" height="450" alt="image" src="https://github.com/user-attachments/assets/445ea100-79ee-486d-a89f-565a5969be1d" />
+
+
+
+
 ---
 
 ## General Workflow
@@ -124,7 +129,7 @@ JTAG read:
 
 ---
 
-## Boundary Chain Reading
+## Boundary Scan READ
 
 ### BOUNDARY INPUT READ
 
@@ -146,31 +151,38 @@ Reads all pins, prints 10 columns per line.
 
 ### Examples
 
-#### 1. Real-world Example:
+#### 1. Real-world Example: Arduino Shield Pin Reading
 
-Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board,Read the state of pin E2 of PMOD-E (which corresponds to the IO_B13 pin) after removing any connections:
+Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board, read the state of pin E2 of PMOD-E (which corresponds to the IO_B13 pin) after removing any connections:
 
 ```tcl
 xsdb% bscan_input -port IO_B13
 304:1 BC_2,IO_B13,output3 | 305:1 BC_2,IO_B13,input
 ```
-The "305:1 BC_2,IO_B13,input" is high status because the pull-up is are enabled
 
-Output will show the current state of the D1 pin on the Arduino shield.
+The "305:1 BC_2,IO_B13,input" is high status because the pull-up is enabled.
+
+Now connect the pin E2 (IO_B13) to GND and read again:
+
+```tcl
+xsdb% bscan_input -port IO_B13 -function input
+305:0 BC_2,IO_B13,input
+```
+
+The pin is now **0** (low) because it's connected to ground. Disconnect the pin from GND and read again—it should return to **1** (high) due to the pull-up resistor.
 
 ---
 
-#### Standard Reading (10 columns)
+#### 2. Standard Reading (10 columns)
 ```tcl
 bscan_input
 ```
 Output:
 ```
-Register  Value
-0         1
-1         0
-2         1
-...
+xsdb% bscan_input
+0:1 BC_2,*,controlr | 1:1 BC_2,CCLK_A8,output3 | 2:1 BC_2,CCLK_A8,input | 3:1 BC_2,M0_M7,input | 4:1 BC_2,M1_M8,input | 5:1 BC_2,M2_M9,input | 6:1 BC_2,CFGBVS_N7,input | 7:1 BC_2,*,internal | 8:1 BC_2,*,controlr | 9:0 BC_2,INIT_B_P8,output3
+10:1 BC_2,INIT_B_P8,input | 11:0 BC_2,*,controlr | 12:0 BC_2,DONE_P9,output3 | 13:0 BC_2,DONE_P9,input | 14:0 BC_2,*,internal | 15:0 BC_2,*,internal | 16:0 BC_2,*,internal | 17:0 BC_2,*,internal | 18:0 BC_2,*,internal | 19:0 BC_2,*,internal
+20:0 BC_2,*,internal | 21:0 BC_2,*,internal | 22:1 BC_2,*,controlr | 23:1 BC_2,IO_L5,output3 | 24:1 BC_2,IO_L5,input | 25:1 BC_2,*,controlr | 26:1 BC_2,IO_N4,output3 | 27:1 BC_2,IO_N4,input | 28:1 BC_2,*,controlr | 29:1 BC_2,IO_P5,output3
 ```
 
 #### 3. Reading with N Columns
@@ -215,6 +227,18 @@ bscan_input 5 -reg
 ```
 Same raw format but with 5 columns.
 
+Example output:
+```
+xsdb% bscan_input 5 -reg
+0:1 | 1:1 | 2:1 | 3:1 | 4:1
+5:1 | 6:1 | 7:1 | 8:1 | 9:0
+10:1 | 11:0 | 12:0 | 13:0 | 14:0
+15:0 | 16:0 | 17:0 | 18:0 | 19:0
+20:0 | 21:0 | 22:1 | 23:1 | 24:1
+25:1 | 26:1 | 27:1 | 28:1 | 29:1
+---snip
+```
+
 #### 8. Reading Without TAP Reset
 ```tcl
 bscan_input -noreset
@@ -228,27 +252,132 @@ bscan_input -port IO_L5 -noreset
 
 ---
 
+## Boundary OUTPUT
+
+### BOUNDARY OUTPUT WRITE
+
+Drives I/O pins to specific logic levels (0, 1, or high-impedance Z). Unlike `bscan_input` which reads pin states, `bscan_output` allows you to actively control output pins via the Boundary Scan chain. This is useful for testing output behavior, simulating signals, or controlling external circuits without dedicated control software.
+
+**Syntax (Register Mode):**
+```tcl
+bscan_output <reg> <0|1|T> [<reg> <value> ...] [-s]
+```
+
+**Syntax (Pin-Name Mode):**
+```tcl
+bscan_output <pin> <0|1|Z|T> [<pin> <value> ...] -n [-s]
+```
+
+**Values:**
+
+Register Mode:
+- `0` - Write 0 to register
+- `1` - Write 1 to register
+- `T` - Toggle output (requires `-count N`)
+
+Pin-Name Mode:
+- `0` - Drive pin low
+- `1` - Drive pin high
+- `Z` - High impedance (tri-state/open-drain)
+- `T` - Toggle output (requires `-count N`)
+
+**Options:**
+
+- `-s` - Apply changes to device (without `-s`, only prepares data in buffer)
+- `-n` - Interpret arguments as pin names (default is register indices)
+- `-count N` - Generate N toggle frames (required when using `T`)
+
+### Examples
+
+#### 1. Real-world Example: Control LEDs on Arduino Shield
+
+Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board, control the on-board LEDs by driving pins M12 and M11. This example turns ON LED L1 (M12) and turns OFF LED L2 (M11):
+
+```tcl
+xsdb% bscan_output M12 1 M11 0 -n -s
+```
+
+The LEDs on the Arduino shield should now reflect the state: L1 is ON (bright), L2 is OFF (dark).
+
+#### 2. Drive Multiple Registers Using BSDL Mapping (Register Mode)
+
+From the BSDL file, boundary registers are mapped to specific pins:
+```
+210 (BC_2, *, controlr, 1)              -- Control register
+211 (BC_2, IO_M12, output3, X, 210, ...)  -- LED L1 output (PAD41)
+212 (BC_2, IO_M12, input, X)              -- LED L1 input feedback
+```
+
+
+Drive multiple registers in one command to set control register and turn on L1:
+
+```tcl
+xsdb% bscan_output 210 0 211 1 -s
+```
+<img width="499" height="403" alt="image" src="https://github.com/user-attachments/assets/fe703829-abb5-44bd-8dde-da5cfc59ab45" />
+
+
+This command:
+- Sets control register 210 to 0 (default state)
+- Sets output register 211 (IO_M12) to 1, turning ON LED L1
+- All other registers remain in their default state
+
+#### 3. Drive Multiple Pins by Name
+
+Control multiple pins simultaneously:
+
+```tcl
+xsdb% bscan_output M12 1 M11 0 -n -s
+```
+
+#### 4. Set Pin to High-Impedance (Tri-State)
+
+Release a pin to high-impedance state (available only in pin-name mode):
+
+```tcl
+xsdb% bscan_output M12 Z -n -s
+```
+
+#### 5. Toggle Pin Multiple Times
+
+Generate a pulse train by toggling a pin 10 times:
+
+```tcl
+xsdb% bscan_output M12 T -n -count 10 -s
+```
+
+The LED flashing frequency depends on the JTAG clock speed. To check the current JTAG frequency:
+
+To read:
+```tcl
+xsdb% jtag frequency
+15000000
+```
+
+To modify the JTAG frequency and change the flashing speed:
+
+```tcl
+xsdb% jtag frequency 10000
+```
+
+
 ### Internal JTAG Sequence
 
 ```
 Run-Test/Idle
-  → Shift-IR(SAMPLE)      [loads SAMPLE opcode]
-  → Capture-DR            [acquires boundary at next clock cycle]
-  → Shift-DR              [transfers bits via JTAG chain]
-  → Run-Test/Idle         [returns to idle]
+  → Shift-IR(EXTEST)      [loads EXTEST opcode for boundary control]
+  → Shift-DR              [shifts in new output values]
+  → Run-Test/Idle         [applies new values to pins]
 ```
+
 
 ---
 
-### Use Cases
+## Boundary Scan OUTPUT READBACK
 
-| Scenario | Command |
-|----------|---------|
-| Monitor everything in real-time | `bscan_input` |
-| Test only IO_L5 group | `bscan_input -port IO_L5` |
-| Find all inputs | `bscan_input -function input` |
-| Low-level debugging | `bscan_input -reg` |
-| Sequential test (no TAP reset) | `bscan_input -noreset` |
+### BOUNDARY OUTPUT SET and READ
+Drives selected outputs then captures inputs while remaining in EXTEST.
+Useful for detecting shorts, opens and stuck pins on DC nets.
 
 ---
 
@@ -272,20 +401,6 @@ Shows:
 set ::BSCAN(irlen) 10
 set ::BSCAN(br_len) 2048
 ```
-
----
-
-## TAP Glossary
-
-| Term | Description |
-|------|-------------|
-| **Test-Logic-Reset** | TAP reset state |
-| **Run-Test/Idle** | Idle execution state |
-| **Shift-IR** | Shift in instruction register |
-| **Capture-DR** | Load selected data register |
-| **Shift-DR** | Serial data transfer |
-| **Update-DR** | Latch shifted data |
-
 ---
 
 ## Legend
