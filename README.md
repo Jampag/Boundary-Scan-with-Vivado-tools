@@ -379,11 +379,56 @@ Run-Test/Idle
 Drives selected outputs then captures inputs while remaining in EXTEST.
 Useful for detecting shorts, opens and stuck pins on DC nets.
 
+
+**Syntax **
+```tcl
+bscan_output_capture -s <reg|pin> <val> <reg|pin> <val> ...
+```
+
+**Options:**
+
+- `-r` <reg...>        read specific registers
+- `-reg`               print all as reg:value (with colors)
+- `-port` <name>       filter by port
+- `-function` <type>   filter by cell function
+- `-idle` <N>          idle cycles before capture
+- note:
+ <columns> is optional, default is 10
+
+
+### Examples
+
+#### 1. Real-world Example: Drive 1 a pin and readback the status
+Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board, control the on-board LED L1 by driving pins M12 then read M12 pin status.
+```tcl
+bscan_output_capture -s IO_M12 1 -port IO_M12 -function input
+212:1 BC_2,IO_M12,input
+```
+Drive the pin M12 at 1 then read M12 pin status is 1, finally all pins return in input.
+
+#### 2. Real-world Example: Now try stuck 1 the pin M12, connet PMOD-N pin N10 at GND.
+<img width="525" height="379" alt="image" src="https://github.com/user-attachments/assets/984e3c6f-0230-4faf-b038-fb9ed51787de" />
+
+Drive the pin M12 at 1 then read M12 pin status, finally all pins return in input.
+```tcl
+bscan_output_capture -s IO_M12 1 -port IO_M12 -function input
+212:0 BC_2,IO_M12,input
+```
+The M12 pin status is `stucked 0`.
+
+
 ---
 
 ## General Reference
 
+### Help 
+
+```tcl
+bscan
+```
+
 ### Internal Configuration
+
 
 Display internal configuration variables:
 ```tcl
