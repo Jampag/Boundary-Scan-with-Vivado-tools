@@ -32,10 +32,11 @@ JTAG connection can be established with:
 
 1. **Download the bscan_tools.tcl file** from [Boundary-Scan-with-Vivado-tools](https://github.com/Jampag/Boundary-Scan-with-Vivado-tools/blob/main/bscan_tools.tcl)
 2. **Connect the JTAG cable**
-3. Start the Vivado hardware server: `hw_server.bat`
-4. Start XSDB: `xsdb.bat`
-5. Load the BSDL description: `bscan_load <device>.bsd`
-6. Use the commands below
+3. Start the Vivado hardware server: `hw_server.bat` (located in your Vivado installation directory)
+5. Start XSDB: `xsdb.bat` (located in your Vivado installation directory)
+6. Load in console XSthe BSDL description: `bscan_load <device>.bsd`
+-- <img width="589" height="262" alt="image" src="https://github.com/user-attachments/assets/55cba9d9-fda1-4d84-9188-1f3ff3d66347" />
+7. Use the commands below
 
 ### Important Notes
 
@@ -91,6 +92,7 @@ Automatically loads:
 - JTAG opcodes (SAMPLE, EXTEST, IDCODE, BYPASS)
 - Pin/register mapping
 
+Now is ready for the following functions
 ---
 
 ## Device Reading
