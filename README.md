@@ -56,7 +56,7 @@ source <path>/bscan_tools.tcl
 ```
 
 Upon successful loading, the following output will be printed:
-```
+```tcl
 xsdb% source D:/tmp/bscan_tools.tcl
 BSCAN JTAG chain
   1  Digilent JTAG-HS3 2102xxxxxxxx
@@ -75,7 +75,7 @@ bscan_load <path>/device.bsd
 ```
 
 Example output:
-```
+```tcl
 xsdb% bscan_load D:/tmp/xc7s15_ftgb196.bsd
  BSDL: D:/tmp/xc7s15_ftgb196.bsd
  BOUNDARY_LENGTH = 339 IRLEN=6 SAMPLE=01 EXTEST=26 IDCODE=09 BYPASS=3F TRAIN=3D PULSE=3C
@@ -380,7 +380,7 @@ Drives selected outputs then captures inputs while remaining in EXTEST.
 Useful for detecting shorts, opens and stuck pins on DC nets.
 
 
-**Syntax **
+**Syntax**
 ```tcl
 bscan_output_capture -s <reg|pin> <val> <reg|pin> <val> ...
 ```
