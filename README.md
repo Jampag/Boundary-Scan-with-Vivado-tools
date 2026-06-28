@@ -314,7 +314,7 @@ Drive multiple registers in one command to set control register and turn on L1:
 ```tcl
 xsdb% bscan_output 210 0 211 1 -s
 ```
-<img width="499" height="403" alt="image" src="https://github.com/user-attachments/assets/fe703829-abb5-44bd-8dde-da5cfc59ab45" />
+<img width="418" height="290" alt="image" src="https://github.com/user-attachments/assets/2ad8c16e-ace1-4438-8a18-c87f8109d743" />
 
 
 This command:
@@ -374,50 +374,279 @@ Run-Test/Idle
 ---
 
 ## Boundary Scan OUTPUT READBACK
-
+ 
 ### BOUNDARY OUTPUT SET and READ
-Drives selected outputs then captures inputs while remaining in EXTEST.
-Useful for detecting shorts, opens and stuck pins on DC nets.
-
-
-**Syntax**
+ 
+Drives selected outputs then captures inputs while remaining in EXTEST. Useful for detecting shorts, opens and stuck pins on DC nets.
+ 
+**Syntax:**
 ```tcl
 bscan_output_capture -s <reg|pin> <val> <reg|pin> <val> ...
 ```
-
+ 
 **Options:**
-
-- `-r` <reg...>        read specific registers
-- `-reg`               print all as reg:value (with colors)
-- `-port` <name>       filter by port
-- `-function` <type>   filter by cell function
-- `-idle` <N>          idle cycles before capture
-- note:
- <columns> is optional, default is 10
+ 
+- `-r` <reg...> - Read specific registers
+- `-reg` - Print all as reg:value (with colors)
+- `-port` <name> - Filter by port
+- `-function` <type> - Filter by cell function
+- `-idle` <N> - Idle cycles before capture
+- <columns> is optional, default is 10
 
 
 ### Examples
 
-#### 1. Real-world Example: Drive 1 a pin and readback the status
-Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board, control the on-board LED L1 by driving pins M12 then read M12 pin status.
+#### 1. Drive Pin and Readback Status
+ 
+Using the [FPGA-Shield-Arduino-compatible](https://github.com/Jampag/FPGA-Shield-Arduino-compatible) board, control the on-board LED L1 by driving pin M12 then read M12 pin status:
+ 
 ```tcl
-bscan_output_capture -s IO_M12 1 -port IO_M12 -function input
+xsdb% bscan_output_capture -s IO_M12 1 -port IO_M12 -function input
 212:1 BC_2,IO_M12,input
 ```
-Drive the pin M12 at 1 then read M12 pin status is 1, finally all pins return in input.
+ 
+Drive the pin M12 to 1 then read M12 pin status is 1. Finally all pins return to input state.
+ 
 
-#### 2. Real-world Example: Now try stuck 1 the pin M12, connet PMOD-N pin N10 at GND.
-<img width="525" height="379" alt="image" src="https://github.com/user-attachments/assets/984e3c6f-0230-4faf-b038-fb9ed51787de" />
+#### 2. Detect Stuck Pin (Short to GND)
+Now test for a stuck pin by connecting PMOD-N pin N10 to GND:
+
+<img width="520" height="381" alt="image" src="https://github.com/user-attachments/assets/7b25a493-d873-430d-a9a5-a08dd21a9749" />
+
+
 
 Drive the pin M12 at 1 then read M12 pin status, finally all pins return in input.
 ```tcl
 bscan_output_capture -s IO_M12 1 -port IO_M12 -function input
 212:0 BC_2,IO_M12,input
 ```
-The M12 pin status is `stucked 0`.
+The M12 pin status is **stuck at 0** because it's shorted to ground. This diagnostic helps identify hardware faults like shorts, opens, and stuck pins on DC nets.
 
 
 ---
+
+## All Available Functions
+ 
+### Load Script
+ 
+**bscan_load**
+ 
+```tcl
+bscan_load <path>/device.bsd
+```
+ 
+Load BSDL file and extract device parameters. Loads BSDL information: boundary length, IR length, opcodes, pin/register mapping.
+ 
+---
+ 
+### Read Device IDCODE
+ 
+**bscan_idcode**
+ 
+```tcl
+bscan_idcode
+```
+ 
+Read device identification code.
+ 
+Sequence: Run-Test/Idle → Shift-IR(IDCODE) → Capture-DR → Shift-DR → Run-Test/Idle
+ 
+---
+ 
+### Boundary Input Read
+ 
+```tcl
+bscan_input
+```
+ 
+Capture and read I/O pin states in the Boundary chain. Captures all I/O pins with optional filtering by port or function type. Supports raw mode (-reg) and stateless operation (-noreset).
+ 
+Sequence: Run-Test/Idle → Shift-IR(SAMPLE) → Capture-DR → Shift-DR → Run-Test/Idle
+ 
+---
+ 
+### Boundary Output (Drive)
+ 
+```tcl
+bscan_output <reg> <0|1|T> [<reg> <value> ...] [-s]
+bscan_output <pin> <0|1|Z|T> [<pin> <value> ...] -n [-s]
+```
+ 
+Drive output pins to specific logic levels. Register Mode: 0 = write 0, 1 = write 1, T = toggle (requires -count N). Pin-Name Mode: 0 = drive low, 1 = drive high, Z = high impedance, T = toggle.
+ 
+Options: -s (apply to device), -n (pin-name mode), -count N (toggle frames)
+ 
+Sequence: Run-Test/Idle → Shift-IR(EXTEST) → Shift-DR → Run-Test/Idle
+ 
+---
+ 
+### Boundary Output + Capture
+ 
+**bscan_output_capture**
+ 
+```tcl
+bscan_output_capture [columns] -s <reg|pin> <val> [<reg|pin> <val> ...] [options]
+```
+Drives selected outputs then captures inputs while remaining in EXTEST.
+Useful for detecting shorts, opens and stuck pins on DC nets.
+
+Sequence: SAMPLE → modify registers → EXTEST → Shift-DR → optional IDLE → Capture-DR
+ 
+---
+ 
+### MGT Output Control
+ 
+```tcl
+bscan_output_mgt <reg|pin> <0|1> [-s] [-t|-p] [-count N]
+```
+ 
+Control high-speed transceiver (MGT/OUTPUT2) pins. Used for MGT TX pins. Supports TRAIN (-t) and PULSE (-p) opcodes.
+ 
+Sequence: Run-Test/Idle → Shift-IR(TRAIN/PULSE) → Shift-DR → Run-Test/Idle
+ 
+---
+ 
+### MGT Stress / Train Tests
+ 
+**run_mgt_test**
+ 
+Execute repeated MGT training tests with register sampling.
+ 
+```tcl
+run_mgt_test <columns> -count <N> -idle <M> -r <reg> <0|1> [...] -sample <reg> [...] [-p] [-t]
+```
+ 
+Performs N iterations of MGT TRAIN/PULSE with M idle cycles between drive and sample. Use highest stable JTAG frequency (30 MHz typical).
+ 
+Sequence: SAMPLE → loop N times: (Shift-IR(TRAIN/PULSE) → Shift-DR → IDLE*M → SAMPLE → Capture-DR → Shift-DR)
+ 
+---
+ 
+### Capacitive Net Test
+ 
+Test capacitive coupling and pin loading.
+ 
+```tcl
+bscan_cap_test <pin> -n [-count <N>] [-gap <N>]
+```
+
+Used to detect if a net is connected to an external device or passive component by observing the decay or persistence of the voltage when the pin is released to high impedance.
+
+Drive pin to 0/1, release to high-impedance (Z), then sample repeatedly to detect capacitive decay.
+
+Typical use cases
+- detect open nets
+- detect presence of pull-up / pull-down resistors
+- detect capacitive loading of traces
+- verify solder connection of pins connected to non-JTAG devices
+ 
+Sequence: EXTEST → Shift-DR (release to Z) → repeat N times: (Capture-DR → Shift-DR → IDLE*gap)
+ 
+---
+ 
+### SPI Configuration
+ 
+Configure SPI interface pins for boundary scan SPI.
+ 
+```tcl
+bscan_spi_cfg SCK=<pin> MOSI=<pin> MISO=<pin> CS=<pin> [CPOL=0|1] [CPHA=0|1]
+bscan_spi_cfg SET_0=<pin> SET_1=<pin>
+bscan_spi_cfg -clear
+```
+ 
+Setup pins and SPI mode parameters (clock polarity, phase). Supports timing delays (PRE_IDLE, CS_SETUP_IDLE in microseconds).
+ 
+---
+ 
+### SPI Transaction
+ 
+Perform SPI read/write transactions.
+ 
+```tcl
+bscan_spi -w <byte> [<byte> ...] [-r <n>]
+```
+ 
+Write bytes via MOSI and optionally read bytes from MISO. Requires prior configuration with bscan_spi_cfg.
+ 
+Sequence: EXTEST → repeat for each bit: (Shift-DR drive → Shift-DR clock → Capture-DR sample MISO → Shift-DR)
+ 
+---
+ 
+### I2C Configuration
+ 
+Configure I2C interface pins for boundary scan I2C.
+ 
+```tcl
+bscan_i2c_cfg SCL=<pin> SDA=<pin>
+```
+ 
+Setup SCL and SDA pins for I2C transactions via boundary scan.
+ 
+---
+ 
+### I2C Device Detect
+ 
+Detect I2C device presence at specified address.
+ 
+```tcl
+bscan_i2cdetect <addr> -w|-r
+```
+ 
+Sends START + ADDR + STOP to check device presence. Use -w for write bit, -r for read bit.
+ 
+---
+ 
+### I2C Register Write
+ 
+Write data to I2C device register.
+ 
+```tcl
+bscan_i2cset <addr> <reg> [<byte> ...]
+```
+ 
+Writes register/data bytes to I2C device at specified address.
+ 
+---
+ 
+### I2C Register Read
+
+Read data from I2C device.
+ 
+```tcl
+bscan_i2cget <addr> <n> -r|-w
+bscan_i2cget <addr> <reg> <n> -r|-w [-rs]
+```
+ 
+Read N bytes from address (with optional register offset). Use -rs for repeated START on register read.
+ 
+---
+ 
+### I2C Bus Scan
+ 
+Scan entire I2C bus for connected devices.
+ 
+```tcl
+bscan_i2cscan -w|-r
+```
+ 
+Scan addresses 0x00..0x7F to discover all connected I2C devices. Requires prior configuration with bscan_i2c_cfg.
+ 
+---
+ 
+### Output3 Pin Scan
+
+ 
+Test output3 (tri-state) pins for shorts and coupling.
+ 
+```tcl
+bscan_output3_scan [<pin> <pin> ...] [-exclude {<pin> ...}] [-include {<pin> ...}]
+```
+Tests OUTPUT3 pins by driving 1 and 0, then capturing all input cells. It reports whether the selected pin follows correctly and whether other pins move together (FOLLOW), useful to detect shorts/coupling.
+
+Sequence: EXTEST → Shift-DR(drive=1) → Capture-DR → Shift-DR(drive=0) → Capture-DR
+ 
+---
+
 
 ## General Reference
 
@@ -426,6 +655,9 @@ The M12 pin status is `stucked 0`.
 ```tcl
 bscan
 ```
+or
+[readme.txt](https://github.com/Jampag/Boundary-Scan-with-Vivado-tools/blob/main/readme.txt)
+
 
 ### Internal Configuration
 
@@ -487,3 +719,9 @@ set ::BSCAN(br_len) 2048
 **Tested:** Vivado System Debugger (XSDB) v2024.2 | Xilinx hw_server v2024.2  
 **Created:** April 2026  
 **License:** Provided as-is for diagnostic and testing purposes
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 (GPL v3).
+
+See the full license at: https://www.gnu.org/licenses/gpl-3.0.html
