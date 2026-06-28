@@ -318,6 +318,7 @@ xsdb% bscan_output 210 0 211 1 -s
 ```
 <img width="418" height="290" alt="image" src="https://github.com/user-attachments/assets/2ad8c16e-ace1-4438-8a18-c87f8109d743" />
 
+   Typically FPGA devices have boundary scan cells called 'output3' structures, but not all devices have the same boundary cell implementation.
 
 This command:
 - Sets control register 210 to 0 (default state)
